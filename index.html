@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>DELTA ETERNITY V119</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        :root { --bg: #0b0b12; --cyan: #00f2ff; --gold: #ffcc00; --card: #1a1a2e; --red: #ff4444; --green: #00ff88; --ai: #bc13fe; }
+        body { background: var(--bg); color: white; font-family: sans-serif; padding: 10px; margin: 0; }
+        .box { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #2a2a40; margin-bottom: 15px; position: relative; }
+        input, textarea, select { width: 100%; padding: 10px; margin: 5px 0; border-radius: 6px; border: 1px solid #333; background: #000; color: #fff; box-sizing: border-box; outline: none; }
+        button { border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 10px; }
+        .btn-main { background: var(--cyan); color: #000; width: 100%; }
+        .btn-gold { background: var(--gold); color: #000; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; }
+        
+        /* ADMIN PANEL */
+        .adm-sec { border: 2px solid var(--ai); padding: 15px; border-radius: 12px; margin-bottom: 15px; display: none; background: #0a0015; }
+        .tab-btn { background: #222; color: #888; margin: 2px; flex: 1; min-width: 80px; }
+        .tab-active { background: var(--ai)!important; color: #fff!important; }
+        .price-tag { display: block; font-size: 10px; color: #fff; font-weight: bold; margin-top: 3px; }
+        
+        /* GOD MENU */
+        #god-menu { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card); border: 2px solid var(--ai); padding: 20px; border-radius: 15px; z-index: 10000; width: 85%; max-width: 320px; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; }
+    </style>
+</head>
+<body>
+
+    <div id="god-menu">
+        <h4 style="text-align:center; color:var(--ai); margin:0 0 10px 0">QUYỀN NĂNG ADMIN</h4>
+        <button class="btn-main" id="btn-god-buy" style="margin-bottom:10px; height:45px">HÀNH ĐỘNG (MUA/QUAY)</button>
+        <button style="background:var(--ai); color:#fff; width:100%; margin-bottom:10px; height:45px" id="btn-god-edit">SỬA GIÁ & THÔNG TIN</button>
+        <button style="background:#444; color:#fff; width:100%" onclick="closeGod()">ĐÓNG LẠI</button>
+    </div>
+    <div class="overlay" onclick="closeGod()"></div>
+
+    <div id="auth-ui" style="max-width:400px; margin:50px auto; padding:10px;">
+        <div class="box">
+            <h3 style="text-align:center; color:var(--cyan)">DELTA V119 ETERNITY</h3>
+            <input type="text" id="au" placeholder="Tài khoản Admin">
+            <input type="password" id="ap" placeholder="Mật khẩu">
+            <button class="btn-main" onclick="auth('login')">XÁC THỰC QUYỀN TRUY CẬP</button>
+        </div>
+    </div>
+
+    <div id="shop-ui" style="display:none; max-width: 600px; margin: auto; padding: 10px;">
+        
+        <div id="adm-box" class="adm-sec">
+            <div style="display: flex; overflow-x: auto; margin-bottom: 10px; gap: 5px;">
+                <button class="tab-btn tab-active" onclick="openTab(event, 'adm-setting')">Cài Đặt</button>
+                <button class="tab-btn" onclick="openTab(event, 'adm-pay')">Duyệt Tiền</button>
+                <button class="tab-btn" onclick="openTab(event, 'adm-key')">Up Key</button>
+                <button class="tab-btn" onclick="openTab(event, 'adm-user')">Người Dùng</button>
+            </div>
+
+            <div id="adm-setting" class="adm-content">
+                <input type="text" id="ai-cmd" placeholder="Nhập 'huỷ' để hoàn tác...">
+                <button style="background:var(--ai); color:#fff; width:100%" onclick="aiProcess()">THỰC THI AI</button>
+                <div class="grid" style="margin-top:10px">
+                    <button style="background:var(--green)" onclick="db.ref('system/settings/status').set(true)">MỞ SHOP</button>
+                    <button style="background:var(--red); color:#fff" onclick="db.ref('system/settings/status').set(false)">ĐÓNG SHOP</button>
+                </div>
+            </div>
+
+            <div id="adm-pay" class="adm-content" style="display:none">
+                <div id="list-pending-pay" style="max-height:150px; overflow-y:auto; font-size:11px;"></div>
+            </div>
+
+            <div id="adm-key" class="adm-content" style="display:none">
+                <select id="key-type"><option value="ngay">Gói Ngày</option><option value="tuan">Gói Tuần</option><option value="thang">Gói Tháng</option><option value="nam">Gói Năm</option></select>
+                <textarea id="key-list" rows="3" placeholder="Dán danh sách key (mỗi dòng 1 key)..."></textarea>
+                <button class="btn-main" onclick="upKey()">XÁC NHẬN UP KEY</button>
+            </div>
+
+            <div id="adm-user" class="adm-content" style="display:none">
+                <div id="list-users" style="max-height:150px; overflow-y:auto; font-size:11px;"></div>
+            </div>
+        </div>
+
+        <div class="box" style="display:flex; justify-content:space-between; align-items:center;">
+            <b>Sếp: <span id="u-id" style="color:var(--cyan)"></span></b>
+            <b>Ví: <span id="u-bl" style="color:var(--gold)">0</span>đ</b>
+        </div>
+
+        <div class="box">
+            <h4 style="text-align:center; color:var(--cyan); margin:0 0 10px 0">🛒 CỬA HÀNG KEY LẺ</h4>
+            <div class="grid">
+                <button class="btn-main" onclick="handleAction('buy', 'ngay')">1 NGÀY <span class="price-tag" id="pr-ngay">0đ</span></button>
+                <button class="btn-main" onclick="handleAction('buy', 'tuan')">1 TUẦN <span class="price-tag" id="pr-tuan">0đ</span></button>
+                <button class="btn-main" onclick="handleAction('buy', 'thang')">1 THÁNG <span class="price-tag" id="pr-thang">0đ</span></button>
+                <button class="btn-main" onclick="handleAction('buy', 'nam')">1 NĂM <span class="price-tag" id="pr-nam">0đ</span></button>
+            </div>
+        </div>
+
+        <div class="box">
+            <h4 style="text-align:center; color:var(--green); margin:0 0 10px 0">💎 COMBO SỈ X10</h4>
+            <div class="grid">
+                <button style="background:var(--green); color:#000" onclick="handleAction('buy10', 'ngay')">X10 NGÀY <span class="price-tag" id="pr-x10n">0đ</span></button>
+                <button style="background:var(--green); color:#000" onclick="handleAction('buy10', 'tuan')">X10 TUẦN <span class="price-tag" id="pr-x10t">0đ</span></button>
+                <button style="background:var(--green); color:#000" onclick="handleAction('buy10', 'thang')">X10 THÁNG <span class="price-tag" id="pr-x10th">0đ</span></button>
+            </div>
+        </div>
+        
+        <div class="box">
+            <h4 style="margin:0">📜 LỊCH SỬ</h4>
+            <div id="h-list" style="font-size:11px; margin-top:10px"></div>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://shopmduy-default-rtdb.asia-southeast1.firebasedatabase.app" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    let curU, curUID, settings = {}, backupSettings = null, isAdmin = false;
+
+    function openTab(evt, tabName) {
+        let contents = document.getElementsByClassName("adm-content");
+        for (let i = 0; i < contents.length; i++) contents[i].style.display = "none";
+        let tabs = document.getElementsByClassName("tab-btn");
+        for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("tab-active");
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.classList.add("tab-active");
+    }
+
+    function handleAction(action, type) {
+        if(!isAdmin) return alert("Đang mua...");
+        document.querySelector('.overlay').style.display = 'block';
+        document.getElementById('god-menu').style.display = 'block';
+        document.getElementById('btn-god-buy').onclick = () => { closeGod(); alert("Admin mua "+type); };
+        document.getElementById('btn-god-edit').onclick = () => {
+            closeGod();
+            let p = prompt("Sếp muốn để giá gói này bao nhiêu?", settings['p_'+type]);
+            if(p) db.ref('system/settings/p_'+type).set(Number(p));
+        };
+    }
+    function closeGod() { document.querySelector('.overlay').style.display = 'none'; document.getElementById('god-menu').style.display = 'none'; }
+
+    function upKey() {
+        const type = document.getElementById('key-type').value;
+        const keys = document.getElementById('key-list').value.trim().split('\n');
+        keys.forEach(k => { if(k.trim()) db.ref('key_store/'+type).push(k.trim()); });
+        alert("Đã đẩy " + keys.length + " key vào kho!");
+        document.getElementById('key-list').value = "";
+    }
+
+    function auth(type) {
+        const u = document.getElementById('au').value.trim().toLowerCase(), p = document.getElementById('ap').value;
+        db.ref('users/'+u).once('value', s => {
+            const d = s.val();
+            if(d && d.password === p) {
+                curU = u; curUID = d.uid; isAdmin = (d.role === 'admin');
+                document.getElementById('auth-ui').style.display = 'none';
+                document.getElementById('shop-ui').style.display = 'block';
+                document.getElementById('u-id').innerText = u.toUpperCase();
+                if(isAdmin) { document.getElementById('adm-box').style.display = 'block'; loadAdminData(); }
+                db.ref('users/'+u+'/balance').on('value', b => document.getElementById('u-bl').innerText = (b.val()||0).toLocaleString());
+                init();
+            } else alert("Sai thông tin!");
+        });
+    }
+
+    function loadAdminData() {
+        db.ref('pending_pay').on('value', s => {
+            const div = document.getElementById('list-pending-pay'); div.innerHTML = s.exists() ? "" : "Không có yêu cầu nạp.";
+            s.forEach(c => {
+                div.innerHTML += `<div style="padding:5px; border-bottom:1px solid #333">${c.val().user}: ${c.val().amount}đ <button style="background:var(--green); color:#000" onclick="approvePay('${c.val().user}', ${c.val().amount}, '${c.key}')">DUYỆT</button></div>`;
+            });
+        });
+        db.ref('users').on('value', s => {
+            const div = document.getElementById('list-users'); div.innerHTML = "";
+            s.forEach(c => {
+                div.innerHTML += `<div style="padding:5px; border-bottom:1px solid #333">${c.key} (${c.val().balance}đ) <button style="background:var(--ai); color:#fff" onclick="editUser('${c.key}')">SỬA</button></div>`;
+            });
+        });
+    }
+
+    function approvePay(u, amt, id) {
+        db.ref('users/'+u+'/balance').once('value', s => {
+            db.ref('users/'+u+'/balance').set((s.val()||0) + Number(amt));
+            db.ref('pending_pay/'+id).remove();
+            alert("Đã duyệt tiền!");
+        });
+    }
+
+    function editUser(u) {
+        let amt = prompt("Set lại số dư cho " + u + ":");
+        if(amt) db.ref('users/'+u+'/balance').set(Number(amt));
+    }
+
+    function init() {
+        db.ref('system/settings').on('value', s => {
+            settings = s.val() || {};
+            const ps = ['ngay','tuan','thang','nam','x10n','x10t','x10th'];
+            ps.forEach(p => { if(document.getElementById('pr-'+p)) document.getElementById('pr-'+p).innerText = (settings['p_'+p]||0).toLocaleString() + "đ"; });
+        });
+    }
+
+    function aiProcess() {
+        if(document.getElementById('ai-cmd').value.toLowerCase()==='huỷ' && backupSettings) db.ref('system/settings').set(backupSettings);
+    }
+</script>
+</body>
+</html>
